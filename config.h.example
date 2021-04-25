@@ -1,0 +1,7 @@
+#define WIFI_SSID ""
+#define WIFI_PASSWORD ""
+#define MQTT_SERVER ""
+#define MQTT_PORT 1883
+#define MQTT_TOPIC_LOCATION "home"
+#define MQTT_TOPIC_SUBLOCATION "main_room"
+#define MQTT_TOPIC_SENSOR_NAME "meteo"
