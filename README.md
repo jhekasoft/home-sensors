@@ -1,6 +1,7 @@
 # Arduino home sensors
 
-This is project for ESP8266 Wi-Fi module. Working with meteo sensor BME280.
+This is project for ESP8266 Wi-Fi module. Working with meteo sensor BME280 +
+DHT11 as second.
 
 ## Circuit board
 

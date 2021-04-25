@@ -3,12 +3,15 @@
 #include <Wire.h>
 #include <Adafruit_Sensor.h>
 #include <Adafruit_BME280.h>
+#include <DHT_U.h>
+#include <DHT.h>
 #include "config.h"
 
 WiFiClient espClient;
 PubSubClient mqttClient(espClient);
 
-Adafruit_BME280 bme; // I2C
+Adafruit_BME280 bme; // I2C BME
+DHT dht(DHT_PIN, DHT11); // DHT
 
 void setup() {
   Serial.begin(9600);
@@ -32,11 +35,15 @@ void setup() {
   // MQTT setup
   mqttClient.setServer(MQTT_SERVER, MQTT_PORT);
   // mqttClient.setCallback(callback);
-  bool mqttStatus;
-  mqttStatus = bme.begin(BME280_ADDRESS_ALTERNATE);
-  if (!mqttStatus) {
+
+  // BME sensor setup
+  bool bmeStatus = bme.begin(BME280_ADDRESS_ALTERNATE);
+  if (!bmeStatus) {
     Serial.println("Could not find a valid BME280 sensor, check wiring!");
   }
+
+  // DHT sensor setup
+  dht.begin();
 }
 
 void loop() {
@@ -62,6 +69,8 @@ void publishValues() {
   float temperature = bme.readTemperature();
   float pressure = bme.readPressure() / 100.0F;
   float humidity = bme.readHumidity();
+  float temperature2 = dht.readTemperature();
+  float humidity2 = dht.readHumidity();
 
   // MQTT publish
   Serial.println("Publishing to MQTT...");
@@ -75,10 +84,12 @@ void publishValues() {
   );
   sprintf(
     payload,
-    "{\"temperature\":%d.%02d,\"pressure\":%d.%02d,\"humidity\":%d.%02d%}",
+    "{\"temperature\":%d.%02d,\"pressure\":%d.%02d,\"humidity\":%d.%02d%,\"temperature2\":%d.%02d,\"humidity2\":%d.%02d%}",
     (int)temperature, (int)(temperature*100)%100,
     (int)pressure, (int)(pressure*100)%100,
-    (int)humidity, (int)(humidity*100)%100
+    (int)humidity, (int)(humidity*100)%100,
+    (int)temperature2, (int)(temperature2*100)%100,
+    (int)humidity2, (int)(humidity2*100)%100
   );
   Serial.println(topic);
   Serial.println(payload);
