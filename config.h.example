@@ -1,17 +1,12 @@
 #define DHT_PIN 2
 #define WIFI_SSID ""
 #define WIFI_PASSWORD ""
-// #define MQTT_SERVER ""
-// #define MQTT_PORT 1883
-// #define MQTT_TOPIC_LOCATION "home"
-// #define MQTT_TOPIC_SUBLOCATION "main_room"
-// #define MQTT_TOPIC_SENSOR_NAME "meteo"
 
 // Template ID, Device Name and Auth Token are provided by the Blynk.Cloud
 // See the Device Info tab, or Template settings
-#define BLYNK_TEMPLATE_ID           "TMPLFYRoiVnL"
-#define BLYNK_DEVICE_NAME           "Quickstart Device"
-#define BLYNK_AUTH_TOKEN            "uypt1CngDEgclzJXIiFpfZZd6SHZyBe9"
+#define BLYNK_TEMPLATE_ID ""
+#define BLYNK_DEVICE_NAME ""
+#define BLYNK_AUTH_TOKEN ""
 
 // Comment this out to disable prints and save space
 #define BLYNK_PRINT Serial
