@@ -11,6 +11,8 @@ char auth[] = BLYNK_AUTH_TOKEN;
 char ssid[] = WIFI_SSID;
 char pass[] = WIFI_PASSWORD;
 
+BlynkTimer timer;
+
 Adafruit_BME280 bme; // I2C BME
 DHT dht(DHT_PIN, DHT11); // DHT
 
@@ -35,16 +37,18 @@ void setup() {
 
   // DHT sensor setup
   dht.begin();
+
+  // Setup a function to be called every minute
+  timer.setInterval(60000L, publishTimerEvent);
 }
 
 void loop() {
   Serial.println("Loop...");
   Blynk.run(); // Initiates Blynk
-  publishValues();
-  delay(60000); // Wait 1 minute
+  timer.run();
 }
 
-void publishValues() {
+void publishTimerEvent() {
   // Values
   float temperature = bme.readTemperature();
   float pressure = bme.readPressure() / 100.0F;
