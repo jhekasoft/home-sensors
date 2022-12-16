@@ -43,7 +43,6 @@ void setup() {
 }
 
 void loop() {
-  Serial.println("Loop...");
   Blynk.run(); // Initiates Blynk
   timer.run();
 }
