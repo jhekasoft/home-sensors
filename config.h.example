@@ -1,4 +1,7 @@
+//#define BME280_USE true
+#define DHT11_USE true
 #define DHT_PIN 2
+
 #define WIFI_SSID ""
 #define WIFI_PASSWORD ""
 
