@@ -76,9 +76,6 @@ void publishTimerEvent() {
   Blynk.virtualWrite(V1, temperature); // For Temperature
   Blynk.virtualWrite(V2, pressure); // For Pressure
   Blynk.virtualWrite(V3, humidity); // For Humidity
-  // TODO: Remove. Legacy
-  Blynk.virtualWrite(V4, 0); // For Temperature 2
-  Blynk.virtualWrite(V5, 0); // For Humidity 2
 
   Serial.println();
 }
