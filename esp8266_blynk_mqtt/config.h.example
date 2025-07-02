@@ -1,0 +1,24 @@
+//#define BME280_USE true
+#define DHT11_USE true
+#define DHT_PIN 2
+// #define I2C1602_USE true
+// #define TM1637_USE true
+
+#define WIFI_SSID ""
+#define WIFI_PASSWORD ""
+
+// Template ID, Device Name and Auth Token are provided by the Blynk.Cloud
+// See the Device Info tab, or Template settings
+#define BLYNK_TEMPLATE_ID ""
+#define BLYNK_DEVICE_NAME ""
+#define BLYNK_AUTH_TOKEN ""
+
+// Comment this out to disable prints and save space
+#define BLYNK_PRINT Serial
+
+// MQTT settings
+#define MQTT_SERVER ""
+#define MQTT_PORT 1883
+#define MQTT_TOPIC_LOCATION "home"
+#define MQTT_TOPIC_SUBLOCATION "main_room"
+#define MQTT_TOPIC_SENSOR_NAME "meteo"
