@@ -4,8 +4,7 @@
 #include <PubSubClient.h>
 #include <Wire.h>
 
-#include <WiFiUdp.h>
-#include <NTPClient.h>
+#include <TZ.h>
 
 #ifdef BME280_USE
   #include <Adafruit_Sensor.h>
@@ -34,9 +33,9 @@ char pass[] = WIFI_PASSWORD;
 
 BlynkTimer timer;
 
-// NTP
-WiFiUDP ntpUDP;
-NTPClient timeClient(ntpUDP, "pool.ntp.org", 10800);
+// NTP servers
+const char* ntpServer1 = "pool.ntp.org";
+const char* ntpServer2 = "time.nist.gov";
 
 #ifdef BME280_USE
   Adafruit_BME280 bme; // I2C BME
@@ -66,7 +65,16 @@ void setup() {
   //Blynk.begin(auth, ssid, pass, IPAddress(192,168,1,100), 8080);
   
   // NTP
-  timeClient.begin();
+  #define TIME_ZONE PSTR("EET-2EEST,M3.5.0/3,M10.5.0/4")
+  configTime(TIME_ZONE, ntpServer1, ntpServer2);
+  Serial.print("Waiting for NTP time synchronization");
+  time_t now = time(nullptr);
+  while (now < 100000) { // Check if time is valid (epoch time should be much larger than this)
+    delay(500);
+    Serial.print(".");
+    now = time(nullptr);
+  }
+  Serial.println("\nTime synchronized");
 
   #ifdef BME280_USE
     // BME sensor setup
@@ -116,14 +124,17 @@ void publishTimerEvent() {
   #endif
 
   // NTP
-  timeClient.update();
-  int timeDec = 0;
-  if(timeClient.isTimeSet()) {
-    timeDec = timeClient.getHours() * 100 + timeClient.getMinutes();
-    Serial.println("TIME!");
-    Serial.println(timeDec);
-  }
+  configTime(TIME_ZONE, ntpServer1, ntpServer2);
 
+  time_t now;
+  struct tm* timeinfo;
+
+  time(&now); // Get current epoch time
+  timeinfo = localtime(&now); // Convert to local time structure
+  int timeDec = 0;
+  timeDec = timeinfo->tm_hour * 100 + timeinfo->tm_min;
+  Serial.println("TIME!");
+  Serial.println(timeDec);
 
   // Publish to Blynk
   Serial.println("Publishing to Blynk...");
@@ -148,8 +159,8 @@ void publishTimerEvent() {
   #ifdef TM1637_USE
     // display.showNumberDec(12);
     int temperatureDec = (int)(temperature*100);
-    display.showNumberDecEx(temperatureDec, 0b01000000, false, 4);
-    // display.showNumberDecEx(timeDec, 0b01000000, false, 4, 0);
+    // display.showNumberDecEx(temperatureDec, 0b01000000, false, 4);
+    display.showNumberDecEx(timeDec, 0b01000000, false, 4, 0);
   #endif
 
   Serial.println();
