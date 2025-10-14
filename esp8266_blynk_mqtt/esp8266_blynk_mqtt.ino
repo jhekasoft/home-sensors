@@ -4,6 +4,9 @@
 #include <PubSubClient.h>
 #include <Wire.h>
 
+#include <WiFiUdp.h>
+#include <NTPClient.h>
+
 #ifdef BME280_USE
   #include <Adafruit_Sensor.h>
   #include <Adafruit_BME280.h>
@@ -31,6 +34,10 @@ char pass[] = WIFI_PASSWORD;
 
 BlynkTimer timer;
 
+// NTP
+WiFiUDP ntpUDP;
+NTPClient timeClient(ntpUDP, "pool.ntp.org", 10800);
+
 #ifdef BME280_USE
   Adafruit_BME280 bme; // I2C BME
 #elif DHT11_USE
@@ -57,6 +64,9 @@ void setup() {
   // You can also specify server:
   //Blynk.begin(auth, ssid, pass, "blynk.cloud", 80);
   //Blynk.begin(auth, ssid, pass, IPAddress(192,168,1,100), 8080);
+  
+  // NTP
+  timeClient.begin();
 
   #ifdef BME280_USE
     // BME sensor setup
@@ -105,6 +115,16 @@ void publishTimerEvent() {
     float pressure = 0;
   #endif
 
+  // NTP
+  timeClient.update();
+  int timeDec = 0;
+  if(timeClient.isTimeSet()) {
+    timeDec = timeClient.getHours() * 100 + timeClient.getMinutes();
+    Serial.println("TIME!");
+    Serial.println(timeDec);
+  }
+
+
   // Publish to Blynk
   Serial.println("Publishing to Blynk...");
   Blynk.virtualWrite(V1, temperature); // For Temperature
@@ -127,8 +147,9 @@ void publishTimerEvent() {
 
   #ifdef TM1637_USE
     // display.showNumberDec(12);
-    float temperatureNum = temperature*100;
-    display.showNumberDecEx((int)temperatureNum, 0b01000000, false, 4, 0);
+    int temperatureDec = (int)(temperature*100);
+    display.showNumberDecEx(temperatureDec, 0b01000000, false, 4);
+    // display.showNumberDecEx(timeDec, 0b01000000, false, 4, 0);
   #endif
 
   Serial.println();
