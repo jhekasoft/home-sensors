@@ -3,7 +3,6 @@
 #include <BlynkSimpleEsp8266.h>
 #include <PubSubClient.h>
 #include <Wire.h>
-
 #include <TZ.h>
 
 #ifdef BME280_USE
@@ -32,6 +31,12 @@ char ssid[] = WIFI_SSID;
 char pass[] = WIFI_PASSWORD;
 
 BlynkTimer timer;
+BlynkTimer displayTimer;
+
+float temperature = 0;
+float humidity = 0;
+float pressure = 0;
+int timeDec = 0;
 
 // NTP servers
 const char* ntpServer1 = "pool.ntp.org";
@@ -49,6 +54,7 @@ const char* ntpServer2 = "time.nist.gov";
 
 #ifdef TM1637_USE
   TM1637Display display = TM1637Display(TM1637_CLK, TM1637_DIO);
+  int TM1637Stage = 1;
 #endif
 
 void setup() {
@@ -104,23 +110,27 @@ void setup() {
   // Setup a function to be called every minute
   timer.setInterval(60000L, publishTimerEvent);
   publishTimerEvent();
+
+  displayTimer.setInterval(5000L, displayTimerEvent);
+  displayTimerEvent();
 }
 
 void loop() {
   Blynk.run(); // Initiates Blynk
   timer.run();
+  displayTimer.run();
 }
 
 void publishTimerEvent() {
   // Values
   #ifdef BME280_USE
-    float temperature = bme.readTemperature();
-    float humidity = bme.readHumidity();
-    float pressure = bme.readPressure() / 100.0F;
+    temperature = bme.readTemperature();
+    humidity = bme.readHumidity();
+    pressure = bme.readPressure() / 100.0F;
   #elif DHT11_USE
-    float temperature = dht.readTemperature();
-    float humidity = dht.readHumidity();
-    float pressure = 0;
+    temperature = dht.readTemperature();
+    humidity = dht.readHumidity();
+    pressure = 0;
   #endif
 
   // NTP
@@ -131,10 +141,7 @@ void publishTimerEvent() {
 
   time(&now); // Get current epoch time
   timeinfo = localtime(&now); // Convert to local time structure
-  int timeDec = 0;
   timeDec = timeinfo->tm_hour * 100 + timeinfo->tm_min;
-  Serial.println("TIME!");
-  Serial.println(timeDec);
 
   // Publish to Blynk
   Serial.println("Publishing to Blynk...");
@@ -142,6 +149,10 @@ void publishTimerEvent() {
   Blynk.virtualWrite(V2, pressure); // For Pressure
   Blynk.virtualWrite(V3, humidity); // For Humidity
 
+  Serial.println();
+}
+
+void displayTimerEvent() {
   #ifdef I2C1602_USE
     // Print to I2 16x02 display
     lcd.clear();
@@ -157,10 +168,14 @@ void publishTimerEvent() {
   #endif
 
   #ifdef TM1637_USE
-    // display.showNumberDec(12);
-    int temperatureDec = (int)(temperature*100);
-    // display.showNumberDecEx(temperatureDec, 0b01000000, false, 4);
-    display.showNumberDecEx(timeDec, 0b01000000, false, 4, 0);
+    if(TM1637Stage == 1) {
+      display.showNumberDecEx(timeDec, 0b00000000, false, 4, 0);
+      TM1637Stage = 2;
+    } else {
+      int temperatureDec = (int)(temperature*100);
+      display.showNumberDecEx(temperatureDec, 0b01000000, false, 4);
+      TM1637Stage = 1;
+    }
   #endif
 
   Serial.println();
