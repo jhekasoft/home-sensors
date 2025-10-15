@@ -24,23 +24,37 @@
   #include <TM1637Display.h>
   #define TM1637_CLK 2
   #define TM1637_DIO 0
+
+  // Loading loader
+  const uint8_t SEG_LOAD1[] = {0b10111000, 0b00111111, 0b01110111, 0b01011110};
+  const uint8_t SEG_LOAD2[] = {0b10111000, 0b10111111, 0b01110111, 0b01011110};
+  const uint8_t SEG_LOAD3[] = {0b10111000, 0b10111111, 0b11110111, 0b01011110};
+  const uint8_t SEG_LOAD4[] = {0b10111000, 0b10111111, 0b11110111, 0b11011110};
+
+  // Degree symbol
+  const uint8_t celsius[] = {
+    SEG_A | SEG_B | SEG_F | SEG_G
+  };
 #endif
+
+// Errors
+// const int ERR_NO_WIFI = 101;
+// const int ERR_NO_BLYNC = 110;
+// const int ERR_NO_BLYNC_AUTH = 111;
+// const int ERR_NO_NTC = 112;
+const int ERR_NO_BME = 201;
 
 char auth[] = BLYNK_AUTH_TOKEN;
 char ssid[] = WIFI_SSID;
 char pass[] = WIFI_PASSWORD;
 
-BlynkTimer timer;
+BlynkTimer timer; // TODO: rename to publishTimer
 BlynkTimer displayTimer;
 
 float temperature = 0;
 float humidity = 0;
 float pressure = 0;
 int timeDec = 0;
-
-// NTP servers
-const char* ntpServer1 = "pool.ntp.org";
-const char* ntpServer2 = "time.nist.gov";
 
 #ifdef BME280_USE
   Adafruit_BME280 bme; // I2C BME
@@ -61,38 +75,7 @@ void setup() {
   Serial.begin(115200);
   delay(500);
 
-  // Wi-Fi connection
-  Serial.println();
-  Serial.println();
-  Serial.println("Connecting to Blynk...");
-  Blynk.begin(auth, ssid, pass);
-  // You can also specify server:
-  //Blynk.begin(auth, ssid, pass, "blynk.cloud", 80);
-  //Blynk.begin(auth, ssid, pass, IPAddress(192,168,1,100), 8080);
-  
-  // NTP
-  #define TIME_ZONE PSTR("EET-2EEST,M3.5.0/3,M10.5.0/4")
-  configTime(TIME_ZONE, ntpServer1, ntpServer2);
-  Serial.print("Waiting for NTP time synchronization");
-  time_t now = time(nullptr);
-  while (now < 100000) { // Check if time is valid (epoch time should be much larger than this)
-    delay(500);
-    Serial.print(".");
-    now = time(nullptr);
-  }
-  Serial.println("\nTime synchronized");
-
-  #ifdef BME280_USE
-    // BME sensor setup
-    bool bmeStatus = bme.begin(BME280_ADDRESS_ALTERNATE);
-    if (!bmeStatus) {
-      Serial.println("Could not find a valid BME280 sensor, check wiring!");
-    }
-  #elif DHT11_USE
-    // DHT sensor setup
-    dht.begin();
-  #endif
-
+  // Init displays
   #ifdef I2C1602_USE
     lcd.init();
     lcd.backlight();
@@ -102,10 +85,55 @@ void setup() {
   #ifdef TM1637_USE
     display.clear();
     display.setBrightness(7, true); // Turn on
+
+    display.setSegments(SEG_LOAD1); // TODO: make function for loading
+  #endif
+
+  // Wi-Fi connection
+  Serial.println();
+  Serial.println();
+  Serial.println("Connecting to Blynk...");
+  Blynk.begin(auth, ssid, pass);
+  // You can also specify server:
+  //Blynk.begin(auth, ssid, pass, "blynk.cloud", 80);
+  //Blynk.begin(auth, ssid, pass, IPAddress(192,168,1,100), 8080);
+  #ifdef TM1637_USE
+    display.setSegments(SEG_LOAD2);
+  #endif
+
+  // displayError(12);
+  
+  // NTP
+  configTime(NTP_TIMEZONE, NTP_SERVER1, NTP_SERVER2);
+  Serial.print("Waiting for NTP time synchronization");
+  time_t now = time(nullptr);
+  while (now < 100000) { // Check if time is valid (epoch time should be much larger than this)
+    delay(500);
+    Serial.print(".");
+    now = time(nullptr);
+  }
+  Serial.println("\nTime synchronized");
+  #ifdef TM1637_USE
+    display.setSegments(SEG_LOAD3);
+  #endif
+
+  #ifdef BME280_USE
+    // BME sensor setup
+    bool bmeStatus = bme.begin(BME280_ADDRESS_ALTERNATE);
+    if (!bmeStatus) {
+      Serial.println("Could not find a valid BME280 sensor, check wiring!");
+      displayError(ERR_NO_BME);
+    }
+  #elif DHT11_USE
+    // DHT sensor setup
+    dht.begin();
   #endif
 
   // Custom connected event
   Blynk.logEvent("connected");
+  #ifdef TM1637_USE
+    display.setSegments(SEG_LOAD4);
+  #endif
 
   // Setup a function to be called every minute
   timer.setInterval(60000L, publishTimerEvent);
@@ -134,8 +162,9 @@ void publishTimerEvent() {
   #endif
 
   // NTP
-  configTime(TIME_ZONE, ntpServer1, ntpServer2);
+  configTime(NTP_TIMEZONE, NTP_SERVER1, NTP_SERVER1);
 
+  // TODO: move to function
   time_t now;
   struct tm* timeinfo;
 
@@ -153,6 +182,13 @@ void publishTimerEvent() {
 }
 
 void displayTimerEvent() {
+  time_t now;
+  struct tm* timeinfo;
+
+  time(&now); // Get current epoch time
+  timeinfo = localtime(&now); // Convert to local time structure
+  timeDec = timeinfo->tm_hour * 100 + timeinfo->tm_min;
+
   #ifdef I2C1602_USE
     // Print to I2 16x02 display
     lcd.clear();
@@ -169,14 +205,34 @@ void displayTimerEvent() {
 
   #ifdef TM1637_USE
     if(TM1637Stage == 1) {
-      display.showNumberDecEx(timeDec, 0b00000000, false, 4, 0);
+      display.showNumberDecEx(timeDec, 0b00000000, true, 4, 0);
       TM1637Stage = 2;
     } else {
-      int temperatureDec = (int)(temperature*100);
-      display.showNumberDecEx(temperatureDec, 0b01000000, false, 4);
+      int temperatureDec = (int)(temperature*10);
+      display.showNumberDecEx(temperatureDec, 0b01000000, false, 3);
+      display.setSegments(celsius, 1, 3);
       TM1637Stage = 1;
     }
   #endif
 
   Serial.println();
+}
+
+void displayError(int errorCode) {
+  #ifdef I2C1602_USE
+    lcd.clear();
+    lcd.setCursor(0, 0);
+    lcd.print("Error:");
+    lcd.setCursor(0, 1);
+    lcd.print(errorCode);
+  #endif
+
+  #ifdef TM1637_USE
+    const uint8_t SEG_ERR[] = {0b01111001};
+    display.clear();
+    display.setSegments(SEG_ERR, 1, 0);
+    display.showNumberDec(errorCode, true, 3, 1);
+  #endif
+
+  delay(1000);
 }
