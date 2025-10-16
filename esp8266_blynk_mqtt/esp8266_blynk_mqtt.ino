@@ -25,12 +25,6 @@
   #define TM1637_CLK 2
   #define TM1637_DIO 0
 
-  // Loading loader
-  const uint8_t SEG_LOAD1[] = {0b10111000, 0b00111111, 0b01110111, 0b01011110};
-  const uint8_t SEG_LOAD2[] = {0b10111000, 0b10111111, 0b01110111, 0b01011110};
-  const uint8_t SEG_LOAD3[] = {0b10111000, 0b10111111, 0b11110111, 0b01011110};
-  const uint8_t SEG_LOAD4[] = {0b10111000, 0b10111111, 0b11110111, 0b11011110};
-
   // Degree symbol
   const uint8_t celsius[] = {
     SEG_A | SEG_B | SEG_F | SEG_G
@@ -48,8 +42,9 @@ char auth[] = BLYNK_AUTH_TOKEN;
 char ssid[] = WIFI_SSID;
 char pass[] = WIFI_PASSWORD;
 
-BlynkTimer timer; // TODO: rename to publishTimer
+BlynkTimer publishTimer;
 BlynkTimer displayTimer;
+BlynkTimer syncTimeTimer;
 
 float temperature = 0;
 float humidity = 0;
@@ -85,9 +80,9 @@ void setup() {
   #ifdef TM1637_USE
     display.clear();
     display.setBrightness(7, true); // Turn on
-
-    display.setSegments(SEG_LOAD1); // TODO: make function for loading
   #endif
+
+  showLoader(25);
 
   // Wi-Fi connection
   Serial.println();
@@ -97,14 +92,12 @@ void setup() {
   // You can also specify server:
   //Blynk.begin(auth, ssid, pass, "blynk.cloud", 80);
   //Blynk.begin(auth, ssid, pass, IPAddress(192,168,1,100), 8080);
-  #ifdef TM1637_USE
-    display.setSegments(SEG_LOAD2);
-  #endif
 
-  // displayError(12);
+  showLoader(50);
+
   
   // NTP
-  configTime(NTP_TIMEZONE, NTP_SERVER1, NTP_SERVER2);
+  syncTime();
   Serial.print("Waiting for NTP time synchronization");
   time_t now = time(nullptr);
   while (now < 100000) { // Check if time is valid (epoch time should be much larger than this)
@@ -113,9 +106,7 @@ void setup() {
     now = time(nullptr);
   }
   Serial.println("\nTime synchronized");
-  #ifdef TM1637_USE
-    display.setSegments(SEG_LOAD3);
-  #endif
+  showLoader(75);
 
   #ifdef BME280_USE
     // BME sensor setup
@@ -131,22 +122,28 @@ void setup() {
 
   // Custom connected event
   Blynk.logEvent("connected");
-  #ifdef TM1637_USE
-    display.setSegments(SEG_LOAD4);
-  #endif
+  showLoader(100);
 
-  // Setup a function to be called every minute
-  timer.setInterval(60000L, publishTimerEvent);
+  // Read and publish data from sensors every minute
+  publishTimer.setInterval(60000L, publishTimerEvent);
   publishTimerEvent();
 
+  // Update display every 5 seconds
   displayTimer.setInterval(5000L, displayTimerEvent);
   displayTimerEvent();
+
+  // Sync time every 5 minutes
+  syncTimeTimer.setInterval(300000L, syncTimeTimerEvent);
 }
 
 void loop() {
   Blynk.run(); // Initiates Blynk
-  timer.run();
+  publishTimer.run();
   displayTimer.run();
+}
+
+void syncTimeTimerEvent() {
+  syncTime();
 }
 
 void publishTimerEvent() {
@@ -161,33 +158,20 @@ void publishTimerEvent() {
     pressure = 0;
   #endif
 
-  // NTP
-  configTime(NTP_TIMEZONE, NTP_SERVER1, NTP_SERVER1);
-
-  // TODO: move to function
-  time_t now;
-  struct tm* timeinfo;
-
-  time(&now); // Get current epoch time
-  timeinfo = localtime(&now); // Convert to local time structure
-  timeDec = timeinfo->tm_hour * 100 + timeinfo->tm_min;
+  readTime();
 
   // Publish to Blynk
   Serial.println("Publishing to Blynk...");
   Blynk.virtualWrite(V1, temperature); // For Temperature
   Blynk.virtualWrite(V2, pressure); // For Pressure
   Blynk.virtualWrite(V3, humidity); // For Humidity
+  Blynk.virtualWrite(V4, timeDec); // For Time at the device
 
   Serial.println();
 }
 
 void displayTimerEvent() {
-  time_t now;
-  struct tm* timeinfo;
-
-  time(&now); // Get current epoch time
-  timeinfo = localtime(&now); // Convert to local time structure
-  timeDec = timeinfo->tm_hour * 100 + timeinfo->tm_min;
+  readTime();
 
   #ifdef I2C1602_USE
     // Print to I2 16x02 display
@@ -214,8 +198,48 @@ void displayTimerEvent() {
       TM1637Stage = 1;
     }
   #endif
+}
 
-  Serial.println();
+void readTime() {
+  time_t now;
+  struct tm* timeinfo;
+
+  time(&now); // Get current epoch time
+  timeinfo = localtime(&now); // Convert to local time structure
+  timeDec = timeinfo->tm_hour * 100 + timeinfo->tm_min;
+}
+
+void syncTime() {
+  Serial.println("Syncing time...");
+  configTime(NTP_TIMEZONE, NTP_SERVER1, NTP_SERVER2);
+}
+
+void showLoader(int percent) {
+  #ifdef I2C1602_USE
+    lcd.clear();
+    lcd.setCursor(0, 0);
+    lcd.print("Loading... " + String(percent) + "%");
+  #endif
+
+  #ifdef TM1637_USE
+    // Loader segments
+    const uint8_t SEG_LOAD1[] = {0b10111000, 0b00111111, 0b01110111, 0b01011110};
+    const uint8_t SEG_LOAD2[] = {0b10111000, 0b10111111, 0b01110111, 0b01011110};
+    const uint8_t SEG_LOAD3[] = {0b10111000, 0b10111111, 0b11110111, 0b01011110};
+    const uint8_t SEG_LOAD4[] = {0b10111000, 0b10111111, 0b11110111, 0b11011110};
+
+    if (percent <= 25) {
+      display.setSegments(SEG_LOAD1);
+    } else if (percent <= 50) {
+      display.setSegments(SEG_LOAD2);
+    } else if (percent <= 75) {
+      display.setSegments(SEG_LOAD3);
+    } else if (percent > 75) {
+      display.setSegments(SEG_LOAD4);
+    }
+  #endif
+
+  Serial.println("Loading... " + String(percent) + "%");
 }
 
 void displayError(int errorCode) {
