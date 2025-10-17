@@ -95,17 +95,8 @@ void setup() {
 
   showLoader(50);
 
-  
-  // NTP
+  // Sync time
   syncTime();
-  Serial.print("Waiting for NTP time synchronization");
-  time_t now = time(nullptr);
-  while (now < 100000) { // Check if time is valid (epoch time should be much larger than this)
-    delay(500);
-    Serial.print(".");
-    now = time(nullptr);
-  }
-  Serial.println("\nTime synchronized");
   showLoader(75);
 
   #ifdef BME280_USE
@@ -140,6 +131,7 @@ void loop() {
   Blynk.run(); // Initiates Blynk
   publishTimer.run();
   displayTimer.run();
+  syncTimeTimer.run();
 }
 
 void syncTimeTimerEvent() {
@@ -166,8 +158,6 @@ void publishTimerEvent() {
   Blynk.virtualWrite(V2, pressure); // For Pressure
   Blynk.virtualWrite(V3, humidity); // For Humidity
   Blynk.virtualWrite(V4, timeDec); // For Time at the device
-
-  Serial.println();
 }
 
 void displayTimerEvent() {
@@ -211,7 +201,18 @@ void readTime() {
 
 void syncTime() {
   Serial.println("Syncing time...");
+
+  // Sync time via NTP
   configTime(NTP_TIMEZONE, NTP_SERVER1, NTP_SERVER2);
+
+  Serial.print("Waiting for NTP time synchronization");
+  time_t now = time(nullptr);
+  while (now < 24 * 3600) { // Wait until time is valid
+    delay(100);
+    Serial.print(".");
+    now = time(nullptr);
+  }
+  Serial.println("\nTime synchronized");
 }
 
 void showLoader(int percent) {
