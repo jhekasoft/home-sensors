@@ -50,6 +50,7 @@ float temperature = 0;
 float humidity = 0;
 float pressure = 0;
 int timeDec = 0;
+char timeStr[5];
 
 #ifdef BME280_USE
   Adafruit_BME280 bme; // I2C BME
@@ -173,8 +174,9 @@ void displayTimerEvent() {
     lcd.print((float)humidity);
     lcd.print("%");
     lcd.setCursor(0, 1);
+    lcd.print(timeStr);
+    lcd.print(" ");
     lcd.print((float)pressure);
-    lcd.print(" hPa");
   #endif
 
   #ifdef TM1637_USE
@@ -196,7 +198,8 @@ void readTime() {
 
   time(&now); // Get current epoch time
   timeinfo = localtime(&now); // Convert to local time structure
-  timeDec = timeinfo->tm_hour * 100 + timeinfo->tm_min;
+  timeDec = timeinfo->tm_hour * 100 + timeinfo->tm_min; // Time in format 0512
+  sprintf(timeStr, "%02d:%02d", timeinfo->tm_hour, timeinfo->tm_min); // Time in format 05:12
 }
 
 void syncTime() {
