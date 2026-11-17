@@ -4,8 +4,8 @@
 // #define I2C1602_USE true
 // #define TM1637_USE true
 
-#define WIFI_SSID ""
-#define WIFI_PASSWORD ""
+#define WIFIMANAGER_AP_NAME "HomeSensors"
+#define WIFIMANAGER_AP_PASSWORD ""
 
 // Template ID, Device Name and Auth Token are provided by the Blynk.Cloud
 // See the Device Info tab, or Template settings

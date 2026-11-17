@@ -1,5 +1,6 @@
 #include "config.h"
 #include <ESP8266WiFi.h>
+#include <WiFiManager.h>
 #include <BlynkSimpleEsp8266.h>
 #include <PubSubClient.h>
 #include <Wire.h>
@@ -39,8 +40,14 @@
 const int ERR_NO_BME = 201;
 
 char auth[] = BLYNK_AUTH_TOKEN;
-char ssid[] = WIFI_SSID;
-char pass[] = WIFI_PASSWORD;
+
+#ifndef WIFIMANAGER_AP_NAME
+#define WIFIMANAGER_AP_NAME "HomeSensors"
+#endif
+
+#ifndef WIFIMANAGER_AP_PASSWORD
+#define WIFIMANAGER_AP_PASSWORD ""
+#endif
 
 BlynkTimer publishTimer;
 BlynkTimer displayTimer;
@@ -67,6 +74,21 @@ char timeStr[5];
   int TM1637Stage = 1;
 #endif
 
+bool connectWiFi() {
+  Serial.println("Connecting to saved Wi-Fi or starting configuration portal...");
+  WiFiManager wifiManager;
+  wifiManager.setConnectTimeout(20);
+  wifiManager.setConfigPortalTimeout(180);
+
+  if (wifiManager.autoConnect(WIFIMANAGER_AP_NAME, WIFIMANAGER_AP_PASSWORD)) {
+    Serial.print("Connected to ");
+    Serial.println(WiFi.SSID());
+    return true;
+  }
+
+  return false;
+}
+
 void setup() {
   Serial.begin(115200);
   delay(500);
@@ -88,8 +110,16 @@ void setup() {
   // Wi-Fi connection
   Serial.println();
   Serial.println();
+  Serial.println("Connecting to Wi-Fi...");
+  if (!connectWiFi()) {
+    Serial.println("Wi-Fi configuration failed; restarting...");
+    delay(1000);
+    ESP.restart();
+    return;
+  }
+
   Serial.println("Connecting to Blynk...");
-  Blynk.begin(auth, ssid, pass);
+  Blynk.begin(auth, WiFi.SSID().c_str(), WiFi.psk().c_str());
   // You can also specify server:
   //Blynk.begin(auth, ssid, pass, "blynk.cloud", 80);
   //Blynk.begin(auth, ssid, pass, IPAddress(192,168,1,100), 8080);
